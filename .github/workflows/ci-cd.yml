@@ -1,0 +1,222 @@
+name: CI/CD Pipeline - Invernadero IoT
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  PROJECT_NAME: invernadero-iot
+
+jobs:
+  # ==========================================
+  # BUILD FIRMWARE ESP32
+  # ==========================================
+  build-firmware:
+    name: Build ESP32 Firmware
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install PlatformIO
+        run: |
+          pip install platformio
+          pio --version
+      
+      - name: Build firmware
+        run: |
+          cd hardware/esp32
+          pio run
+      
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: esp32-firmware
+          path: hardware/esp32/.pio/build/esp32dev/firmware.bin
+          retention-days: 30
+
+  # ==========================================
+  # DEPLOY LAMBDA FUNCTIONS
+  # ==========================================
+  deploy-lambda:
+    name: Deploy Lambda Functions
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Install dependencies - Process Sensor Data
+        run: |
+          cd cloud/lambda/process_sensor_data
+          npm install --production
+      
+      - name: Package Lambda - Process Sensor Data
+        run: |
+          cd cloud/lambda/process_sensor_data
+          zip -r function.zip .
+      
+      - name: Deploy Lambda - Process Sensor Data
+        run: |
+          cd cloud/lambda/process_sensor_data
+          aws lambda update-function-code \
+            --function-name ${{ env.PROJECT_NAME }}-process-sensor-data-prod \
+            --zip-file fileb://function.zip \
+            --region ${{ env.AWS_REGION }}
+      
+      - name: Install dependencies - Control Actuators
+        run: |
+          cd cloud/lambda/control_actuators
+          npm install --production
+      
+      - name: Package Lambda - Control Actuators
+        run: |
+          cd cloud/lambda/control_actuators
+          zip -r function.zip .
+      
+      - name: Deploy Lambda - Control Actuators
+        run: |
+          cd cloud/lambda/control_actuators
+          aws lambda update-function-code \
+            --function-name ${{ env.PROJECT_NAME }}-control-actuators-prod \
+            --zip-file fileb://function.zip \
+            --region ${{ env.AWS_REGION }}
+
+  # ==========================================
+  # DEPLOY INFRASTRUCTURE
+  # ==========================================
+  deploy-infrastructure:
+    name: Deploy CloudFormation Stack
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Validate CloudFormation template
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://cloud/cloudformation/infrastructure.yml
+      
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --template-file cloud/cloudformation/infrastructure.yml \
+            --stack-name ${{ env.PROJECT_NAME }}-stack-prod \
+            --parameter-overrides \
+              ProjectName=${{ env.PROJECT_NAME }} \
+              Environment=prod \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --region ${{ env.AWS_REGION }}
+      
+      - name: Get stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name ${{ env.PROJECT_NAME }}-stack-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs' \
+            --output table
+
+  # ==========================================
+  # VALIDATE CODE
+  # ==========================================
+  validate:
+    name: Validate Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Validate Lambda functions syntax
+        run: |
+          cd cloud/lambda/process_sensor_data
+          npm install
+          node -c index.js
+          
+          cd ../control_actuators
+          npm install
+          node -c index.js
+      
+      - name: Check CloudFormation syntax
+        run: |
+          pip install cfn-lint
+          cfn-lint cloud/cloudformation/infrastructure.yml
+
+  # ==========================================
+  # CREATE RELEASE
+  # ==========================================
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-firmware, deploy-lambda, deploy-infrastructure]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download firmware artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: esp32-firmware
+          path: ./artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./artifacts/firmware.bin
+          body: |
+            ## 🚀 Release ${{ github.ref_name }}
+            
+            ### Cambios
+            - Firmware ESP32 compilado
+            - Funciones Lambda desplegadas
+            - Infraestructura AWS actualizada
+            
+            ### Instalación
+            1. Descargar `firmware.bin`
+            2. Cargar al ESP32 usando PlatformIO o esptool
+            3. Configurar credenciales WiFi y AWS en `config.h`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

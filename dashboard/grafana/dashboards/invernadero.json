@@ -1,0 +1,298 @@
+{
+    "dashboard": {
+        "title": "Monitoreo Invernadero IoT",
+        "tags": [
+            "iot",
+            "greenhouse",
+            "sensors"
+        ],
+        "timezone": "browser",
+        "schemaVersion": 16,
+        "version": 0,
+        "refresh": "30s",
+        "panels": [
+            {
+                "id": 1,
+                "title": "Temperatura Actual",
+                "type": "stat",
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 0,
+                    "y": 0
+                },
+                "targets": [
+                    {
+                        "queryType": "timeSeriesQuery",
+                        "rawQuery": true,
+                        "query": "SELECT temperatura FROM sensor_data WHERE thingName = 'invernadero-01' ORDER BY timestamp DESC LIMIT 1"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "celsius",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": null,
+                                    "color": "blue"
+                                },
+                                {
+                                    "value": 15,
+                                    "color": "green"
+                                },
+                                {
+                                    "value": 28,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 35,
+                                    "color": "red"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 2,
+                "title": "Humedad Ambiente",
+                "type": "stat",
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 6,
+                    "y": 0
+                },
+                "targets": [
+                    {
+                        "queryType": "timeSeriesQuery",
+                        "rawQuery": true,
+                        "query": "SELECT humedad FROM sensor_data WHERE thingName = 'invernadero-01' ORDER BY timestamp DESC LIMIT 1"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percent",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": null,
+                                    "color": "red"
+                                },
+                                {
+                                    "value": 40,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 60,
+                                    "color": "green"
+                                },
+                                {
+                                    "value": 80,
+                                    "color": "yellow"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 3,
+                "title": "Humedad del Suelo",
+                "type": "stat",
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 12,
+                    "y": 0
+                },
+                "targets": [
+                    {
+                        "queryType": "timeSeriesQuery",
+                        "rawQuery": true,
+                        "query": "SELECT humedadSuelo FROM sensor_data WHERE thingName = 'invernadero-01' ORDER BY timestamp DESC LIMIT 1"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percent",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": null,
+                                    "color": "red"
+                                },
+                                {
+                                    "value": 30,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 50,
+                                    "color": "green"
+                                },
+                                {
+                                    "value": 80,
+                                    "color": "blue"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 4,
+                "title": "Luminosidad",
+                "type": "stat",
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 18,
+                    "y": 0
+                },
+                "targets": [
+                    {
+                        "queryType": "timeSeriesQuery",
+                        "rawQuery": true,
+                        "query": "SELECT luminosidad FROM sensor_data WHERE thingName = 'invernadero-01' ORDER BY timestamp DESC LIMIT 1"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percent",
+                        "thresholds": {
+                            "mode": "absolute",
+                            "steps": [
+                                {
+                                    "value": null,
+                                    "color": "dark-blue"
+                                },
+                                {
+                                    "value": 20,
+                                    "color": "blue"
+                                },
+                                {
+                                    "value": 50,
+                                    "color": "yellow"
+                                },
+                                {
+                                    "value": 80,
+                                    "color": "orange"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": 5,
+                "title": "Historial de Temperatura",
+                "type": "timeseries",
+                "gridPos": {
+                    "h": 9,
+                    "w": 12,
+                    "x": 0,
+                    "y": 8
+                },
+                "targets": [
+                    {
+                        "queryType": "timeSeriesQuery",
+                        "rawQuery": true,
+                        "query": "SELECT timestamp, temperatura FROM sensor_data WHERE thingName = 'invernadero-01' AND timestamp > $__from AND timestamp < $__to ORDER BY timestamp"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "celsius",
+                        "color": {
+                            "mode": "palette-classic"
+                        }
+                    }
+                }
+            },
+            {
+                "id": 6,
+                "title": "Historial de Humedad",
+                "type": "timeseries",
+                "gridPos": {
+                    "h": 9,
+                    "w": 12,
+                    "x": 12,
+                    "y": 8
+                },
+                "targets": [
+                    {
+                        "queryType": "timeSeriesQuery",
+                        "rawQuery": true,
+                        "query": "SELECT timestamp, humedad, humedadSuelo FROM sensor_data WHERE thingName = 'invernadero-01' AND timestamp > $__from AND timestamp < $__to ORDER BY timestamp"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "unit": "percent",
+                        "color": {
+                            "mode": "palette-classic"
+                        }
+                    }
+                }
+            },
+            {
+                "id": 7,
+                "title": "Estado de Actuadores",
+                "type": "stat",
+                "gridPos": {
+                    "h": 6,
+                    "w": 8,
+                    "x": 0,
+                    "y": 17
+                },
+                "targets": [
+                    {
+                        "queryType": "timeSeriesQuery",
+                        "rawQuery": true,
+                        "query": "SELECT actuator, state FROM actuator_actions WHERE thingName = 'invernadero-01' ORDER BY timestamp DESC LIMIT 3"
+                    }
+                ],
+                "fieldConfig": {
+                    "defaults": {
+                        "mappings": [
+                            {
+                                "type": "value",
+                                "value": "on",
+                                "text": "ENCENDIDO",
+                                "color": "green"
+                            },
+                            {
+                                "type": "value",
+                                "value": "off",
+                                "text": "APAGADO",
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "id": 8,
+                "title": "Alertas Recientes",
+                "type": "table",
+                "gridPos": {
+                    "h": 6,
+                    "w": 16,
+                    "x": 8,
+                    "y": 17
+                },
+                "targets": [
+                    {
+                        "queryType": "timeSeriesQuery",
+                        "rawQuery": true,
+                        "query": "SELECT timestamp, type, severity, message FROM alerts WHERE thingName = 'invernadero-01' ORDER BY timestamp DESC LIMIT 10"
+                    }
+                ]
+            }
+        ]
+    }
+}

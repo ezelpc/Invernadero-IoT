@@ -1,0 +1,306 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Infraestructura AWS para Sistema de Monitoreo de Invernadero IoT'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: invernadero-iot
+    Description: Nombre del proyecto
+  
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - dev
+      - prod
+    Description: Ambiente de despliegue
+
+Resources:
+  # ==========================================
+  # DYNAMODB TABLES
+  # ==========================================
+  
+  SensorDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-sensor-data-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: thingName
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: ThingNameTimestampIndex
+          KeySchema:
+            - AttributeName: thingName
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+  
+  ActuatorActionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-actuator-actions-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: thingName
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: ThingNameTimestampIndex
+          KeySchema:
+            - AttributeName: thingName
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+  
+  # ==========================================
+  # S3 BUCKET FOR LOGS
+  # ==========================================
+  
+  LogsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-logs-${Environment}-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLogs
+            Status: Enabled
+            ExpirationInDays: 90
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+  
+  # ==========================================
+  # IAM ROLES
+  # ==========================================
+  
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-lambda-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt SensorDataTable.Arn
+                  - !Sub '${SensorDataTable.Arn}/index/*'
+                  - !GetAtt ActuatorActionsTable.Arn
+                  - !Sub '${ActuatorActionsTable.Arn}/index/*'
+        - PolicyName: IoTAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iot:Publish
+                  - iot:UpdateThingShadow
+                  - iot:GetThingShadow
+                Resource: '*'
+  
+  IoTRuleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-iot-rule-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaInvokeAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt ProcessSensorDataFunction.Arn
+  
+  # ==========================================
+  # LAMBDA FUNCTIONS
+  # ==========================================
+  
+  ProcessSensorDataFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-process-sensor-data-${Environment}'
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref SensorDataTable
+          IOT_ENDPOINT: !Sub '${AWS::AccountId}.iot.${AWS::Region}.amazonaws.com'
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            console.log('Placeholder function - deploy real code');
+            return { statusCode: 200, body: 'OK' };
+          };
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+  
+  ControlActuatorsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-control-actuators-${Environment}'
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          ACTIONS_TABLE: !Ref ActuatorActionsTable
+          IOT_ENDPOINT: !Sub '${AWS::AccountId}.iot.${AWS::Region}.amazonaws.com'
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            console.log('Placeholder function - deploy real code');
+            return { statusCode: 200, body: 'OK' };
+          };
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+  
+  # ==========================================
+  # IOT RULES
+  # ==========================================
+  
+  SensorDataRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      RuleName: !Sub '${ProjectName}_process_sensor_data_${Environment}'
+      TopicRulePayload:
+        Sql: "SELECT * FROM 'invernadero/sensores/#'"
+        Description: 'Procesa datos de sensores y los envía a Lambda'
+        RuleDisabled: false
+        Actions:
+          - Lambda:
+              FunctionArn: !GetAtt ProcessSensorDataFunction.Arn
+  
+  SensorDataRulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ProcessSensorDataFunction
+      Action: lambda:InvokeFunction
+      Principal: iot.amazonaws.com
+      SourceArn: !GetAtt SensorDataRule.Arn
+  
+  # ==========================================
+  # CLOUDWATCH LOG GROUPS
+  # ==========================================
+  
+  ProcessSensorDataLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProcessSensorDataFunction}'
+      RetentionInDays: 30
+  
+  ControlActuatorsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ControlActuatorsFunction}'
+      RetentionInDays: 30
+
+# ==========================================
+# OUTPUTS
+# ==========================================
+
+Outputs:
+  SensorDataTableName:
+    Description: Nombre de la tabla DynamoDB para datos de sensores
+    Value: !Ref SensorDataTable
+    Export:
+      Name: !Sub '${ProjectName}-sensor-data-table-${Environment}'
+  
+  ActuatorActionsTableName:
+    Description: Nombre de la tabla DynamoDB para acciones de actuadores
+    Value: !Ref ActuatorActionsTable
+    Export:
+      Name: !Sub '${ProjectName}-actuator-actions-table-${Environment}'
+  
+  LogsBucketName:
+    Description: Nombre del bucket S3 para logs
+    Value: !Ref LogsBucket
+    Export:
+      Name: !Sub '${ProjectName}-logs-bucket-${Environment}'
+  
+  ProcessSensorDataFunctionArn:
+    Description: ARN de la función Lambda para procesar datos de sensores
+    Value: !GetAtt ProcessSensorDataFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-process-sensor-data-arn-${Environment}'
+  
+  ControlActuatorsFunctionArn:
+    Description: ARN de la función Lambda para controlar actuadores
+    Value: !GetAtt ControlActuatorsFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-control-actuators-arn-${Environment}'
+  
+  IoTEndpoint:
+    Description: Endpoint de AWS IoT Core
+    Value: !Sub '${AWS::AccountId}.iot.${AWS::Region}.amazonaws.com'

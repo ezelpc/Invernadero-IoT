@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invernadero IoT - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🌱 Invernadero IoT</h1>
+                <div class="connection-status">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="connectionStatus">Conectando...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Alertas -->
+        <div id="alertsContainer" class="alerts-container"></div>
+
+        <!-- Sensores en tiempo real -->
+        <section class="sensors-grid">
+            <div class="sensor-card">
+                <div class="sensor-icon">🌡️</div>
+                <div class="sensor-info">
+                    <h3>Temperatura</h3>
+                    <div class="sensor-value">
+                        <span id="temperatura">--</span>
+                        <span class="unit">°C</span>
+                    </div>
+                    <div class="sensor-status" id="tempStatus">Normal</div>
+                </div>
+            </div>
+
+            <div class="sensor-card">
+                <div class="sensor-icon">💧</div>
+                <div class="sensor-info">
+                    <h3>Humedad Ambiente</h3>
+                    <div class="sensor-value">
+                        <span id="humedad">--</span>
+                        <span class="unit">%</span>
+                    </div>
+                    <div class="sensor-status" id="humStatus">Normal</div>
+                </div>
+            </div>
+
+            <div class="sensor-card">
+                <div class="sensor-icon">🌾</div>
+                <div class="sensor-info">
+                    <h3>Humedad del Suelo</h3>
+                    <div class="sensor-value">
+                        <span id="humedadSuelo">--</span>
+                        <span class="unit">%</span>
+                    </div>
+                    <div class="sensor-status" id="soilStatus">Normal</div>
+                </div>
+            </div>
+
+            <div class="sensor-card">
+                <div class="sensor-icon">☀️</div>
+                <div class="sensor-info">
+                    <h3>Luminosidad</h3>
+                    <div class="sensor-value">
+                        <span id="luminosidad">--</span>
+                        <span class="unit">%</span>
+                    </div>
+                    <div class="sensor-status" id="luxStatus">Normal</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gráficos -->
+        <section class="charts-section">
+            <div class="chart-card">
+                <h3>Temperatura (últimas 24h)</h3>
+                <canvas id="tempChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Humedad (últimas 24h)</h3>
+                <canvas id="humidityChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Control de Actuadores -->
+        <section class="actuators-section">
+            <h2>Control de Actuadores</h2>
+            <div class="actuators-grid">
+                <div class="actuator-card">
+                    <div class="actuator-header">
+                        <span class="actuator-icon">💨</span>
+                        <h3>Ventilador</h3>
+                    </div>
+                    <div class="actuator-controls">
+                        <label class="switch">
+                            <input type="checkbox" id="ventiladorSwitch">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="actuator-state" id="ventiladorState">Apagado</span>
+                    </div>
+                </div>
+
+                <div class="actuator-card">
+                    <div class="actuator-header">
+                        <span class="actuator-icon">🚿</span>
+                        <h3>Bomba de Riego</h3>
+                    </div>
+                    <div class="actuator-controls">
+                        <label class="switch">
+                            <input type="checkbox" id="bombaSwitch">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="actuator-state" id="bombaState">Apagado</span>
+                    </div>
+                </div>
+
+                <div class="actuator-card">
+                    <div class="actuator-header">
+                        <span class="actuator-icon">💡</span>
+                        <h3>Luces</h3>
+                    </div>
+                    <div class="actuator-controls">
+                        <label class="switch">
+                            <input type="checkbox" id="lucesSwitch">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="actuator-state" id="lucesState">Apagado</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Última actualización -->
+        <footer class="footer">
+            <p>Última actualización: <span id="lastUpdate">--</span></p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1400.0.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
