@@ -190,8 +190,10 @@ Este proyecto está bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detal
 
 ## 👨‍💻 Autor
 
-**Tu Nombre**
-- GitHub: [@tu-usuario](https://github.com/tu-usuario)
+**Castañeda Ramírez Gabriel Eduardo**
+**Fernández Baños Diana Paola**
+**Rodriguez Nuñez Ángel**
+**Perez Carbajal Ezequiel Nahun**
 
 ## 🙏 Agradecimientos
 
